@@ -13,15 +13,6 @@ exports.onCreateWebpackConfig = ({ actions }) => {
 };
 
 // create a static map image for every RSV
-exports.createSchemaCustomization = ({ actions: { createTypes } }) => {
-  createTypes(`
-    type MetaJson implements Node {
-      geoJson: GeometryJson @link(from: "jsonId", by: "name")
-      staticMap: File @link(from: "jsonId", by: "name")
-    }
-  `);
-};
-
 exports.onCreateNode = async ({
   node,
   actions: { createNode },
@@ -45,5 +36,39 @@ exports.onCreateNode = async ({
       cache,
       store,
     });
+  }
+};
+
+// link geometry and staticMap to metaJson nodes
+exports.createSchemaCustomization = ({
+  actions: { createTypes, createFieldExtension },
+}) => {
+  createFieldExtension({
+    name: 'defaultMap',
+    extend() {
+      return {
+        type: 'File',
+        resolve(source, args, context) {
+          return context.nodeModel.findOne({
+            type: 'File',
+          });
+        },
+      };
+    },
+  });
+  if (process.env['CONTEXT'] !== 'production') {
+    createTypes(`
+    type MetaJson implements Node {
+      geoJson: GeometryJson @link(from: "jsonId", by: "name")
+      staticMap: File @defaultMap
+    }
+  `);
+  } else {
+    createTypes(`
+    type MetaJson implements Node {
+      geoJson: GeometryJson @link(from: "jsonId", by: "name")
+      staticMap: File @link(from: "jsonId", by: "name")
+    }
+  `);
   }
 };
